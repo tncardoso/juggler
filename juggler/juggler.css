@@ -32,3 +32,48 @@ Sidebar Title {
     text-style: bold;
 }
 
+ChatTitle {
+    margin: 1 4;
+    padding: 1 2;
+    background: cornflowerblue;
+    color: black;
+    text-align: center;
+    text-style: bold;
+}
+
+Title {
+    margin: 1 4;
+    padding: 1 2;
+    background: cornflowerblue;
+    color: black;
+    text-align: center;
+    text-style: bold;
+}
+
+Avatar {
+    width: 5;
+    height: 3;
+    content-align: center middle;
+    padding: 1;
+}
+
+Baloon {
+    height: auto;
+    width: 100%;
+    margin: 1 3;
+    border: tall $background;
+    background: $boost;
+    layout: horizontal;
+    padding: 0;
+}
+
+BaloonContainer {
+    height: auto;
+    min-height: 3;
+    padding-bottom: 0;
+}
+
+BaloonMarkdown {
+    padding: 0;
+    margin: 0;
+}

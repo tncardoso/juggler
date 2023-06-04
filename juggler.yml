@@ -1,0 +1,13 @@
+aliases:
+  readproof: |-
+    {{#system~}}
+    Readproof and rewrite the text delimited by triple backquotes. Add explanations for each corretion made.
+
+    ```
+    {{text}}
+    ```
+    {{~/system}}
+
+    {{#assistant~}}
+    {{gen 'rewrite'}}
+    {{~/assistant}}
