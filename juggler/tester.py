@@ -41,20 +41,33 @@ class Tester(BaseModel):
         #print(res)
         #print(res.variables())
 
-        for assert_var in meta["assert"].keys():
-            if meta["assert"][assert_var]["type"] == "json":
-                #print("RAW")
-                #print(res.get(assert_var))
-                expected = meta["assert"][assert_var]["value"]
-                actual = json.loads(res.get(assert_var))
+        if "verbose" in meta:
+            for verbose_var in meta["verbose"]:
+                value = res.get(verbose_var)
+                info(f"    {verbose_var}: \"{value}\"")
 
-                diff = DeepDiff(expected, actual)
-                if diff:
-                    error("   " + str(diff))
-                    return False
-                else:
-                    succ("    ok!")
-                    return True
+        if "assert" in meta:
+            for assert_var in meta["assert"].keys():
+                if meta["assert"][assert_var]["type"] == "json":
+                    #print("RAW")
+                    #print(res.get(assert_var))
+                    expected = meta["assert"][assert_var]["value"]
+                    actual = None
+                    try:
+                        actual = json.loads(res.get(assert_var))
+                    except json.decoder.JSONDecodeError:
+                        error(f"    {assert_var}: invalid json")
+                        error(f"    \"{res.get(assert_var)}\"")
+
+                    diff = DeepDiff(expected, actual)
+                    if diff:
+                        error(f"   {assert_var}: " + str(actual))
+                        error("   " + str(diff))
+                        return False
+                    else:
+                        succ("    ok!")
+                        return True
+
                 
 
     def run_tests(self, dir: Path, config):
