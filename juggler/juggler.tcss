@@ -1,10 +1,9 @@
-* {
-    transition: background 500ms in_out_cubic, color 500ms in_out_cubic;
-}
-
 Screen {
     layers: base overlay notes notifications;
     overflow: hidden;
+}
+
+Body {
 }
 
 Sidebar {
@@ -25,23 +24,18 @@ Sidebar.-hidden {
 Sidebar Title {
     background: $boost;
     color: $secondary;
-    padding: 2 4;
+    padding: 1 2;
+    padding-top: 2;
     border-right: vkey $background;
-    dock: top;
     text-align: center;
     text-style: bold;
+}
+
+Sidebar Button {
+    width: 100%;
 }
 
 ChatTitle {
-    margin: 1 4;
-    padding: 1 2;
-    background: cornflowerblue;
-    color: black;
-    text-align: center;
-    text-style: bold;
-}
-
-Title {
     margin: 1 4;
     padding: 1 2;
     background: cornflowerblue;

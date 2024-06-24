@@ -1,176 +1,193 @@
-import enum
-import openai
-import yaml
-import asyncio
-
-from typing import List
-
-from textual import work
+from litellm import acompletion
+from textual import log
 from textual.app import App, ComposeResult
-from textual.reactive import Reactive
-from textual.message import Message
-from textual.worker import Worker, get_current_worker
-from textual.containers import Container, Horizontal, ScrollableContainer
-from textual.reactive import reactive
+from textual.binding import Binding
+from textual.containers import Container, ScrollableContainer
 from textual.css.query import NoMatches
-from textual.widget import Widget
+from textual.reactive import reactive
 from textual.widgets import (
-    Button,
-    DataTable,
-    Footer,
-    Header,
-    Input,
     Static,
-    Switch,
-    TextLog,
+    Header,
+    Footer,
+    Button,
+    Input,
     Markdown,
     LoadingIndicator,
+    TextArea,
 )
+from juggler.message import Message, MessageType, Chat
 
-from juggler.message import MessageType, LLMMessage
-from juggler.components.baloon import (
-    Baloon,
-    BaloonContainer,
-    BaloonMarkdown,
-)
-from juggler.components.layout import (
-    Sidebar,
-    ChatTitle,
-    Body,
-)
-from juggler.llm.library import GuidanceLibrary
+class Body(ScrollableContainer):
+    pass
+
+class ChatTitle(Static):
+    pass
+
+class Title(Static):
+    pass
+
+class Avatar(Container):
+    avatar: MessageType = MessageType.SYSTEM
+
+    def __init__(self, avatar):
+        super().__init__()
+        self.avatar = avatar
+
+    def compose(self) -> ComposeResult:
+        yield Static(self.avatar)
+
+class BaloonContainer(Container):
+    pass
+
+class BaloonMarkdown(Markdown):
+    pass
+
+class Baloon(Container):
+    content: str = reactive("")
+    container: BaloonContainer
+    markdown: BaloonMarkdown
+    message_type: MessageType = MessageType.SYSTEM
+    add_loaded: bool = False
+    loading: bool = True
+
+    def __init__(self, message_type: MessageType, content: str, add_loaded: bool=False):
+        super().__init__()
+        self.message_type = message_type
+        self.add_loaded = add_loaded
+        self.content = content
+        self.markdown = BaloonMarkdown(content)
+        self.container = BaloonContainer(LoadingIndicator())
+
+    def compose(self) -> ComposeResult:
+        yield Avatar(self.message_type)
+        yield self.container
+
+    def loaded(self) -> None:
+        if self.loading:
+            for widget in self.container.children:
+                widget.remove()
+            self.container.mount(self.markdown)
+            self.loading = False
+
+    def on_mount(self) -> None:
+        if self.add_loaded:
+            self.loaded()
+
+    def update(self, content: str):
+        self.content = content
+
+    def update_delta(self, delta: str):
+        self.content += delta
+
+    async def watch_content(self, content: str) -> None:
+        try:
+            await self.markdown.update(content)
+        except NoMatches:
+            pass
+
+class Sidebar(ScrollableContainer):
+    def compose(self) -> ComposeResult:
+        yield Title("Templates")
+        yield Title("Sessions")
 
 class Juggler(App[None]):
-    CSS_PATH = "juggler.css"
     TITLE = "Juggler"
+    CSS_PATH = "juggler.tcss"
     BINDINGS = [
-        ("ctrl+b", "toggle_sidebar", "History"),
+        Binding("f1", "toggle_sidebar", "Sidebar"),
+        Binding("f2", "new_chat", "New"),
+        Binding("ctrl+q", "app.quit", "Quit", show=True),
     ]
 
-    show_sidebar = reactive(False)
-    messages: list[LLMMessage] = []
-    first_message: bool = True
-    library: GuidanceLibrary = None
+    current_baloon: Baloon = None
+    current_chat: Chat = Chat()
+    current_title: ChatTitle = ChatTitle("New chat")
+    body: Body
 
-    class ContentUpdate(Message):
-        class Type(enum.Enum):
-            UPDATE = enum.auto()
-            FINISHED = enum.auto()
-
-        def __init__(self, typ: Type, content: List[LLMMessage] = None) -> None:
-            self.type = typ
-            self.content = content
-            super().__init__()
-
-    def __init__(self, library: GuidanceLibrary):
-        super().__init__()
-        self.library = library      
+    def __init__(self):
+        super(Juggler, self).__init__()
+        self.model = "claude-3-5-sonnet-20240620"
+        #gpt-3.5-turbo
 
     def compose(self) -> ComposeResult:
         yield Container(
             Sidebar(classes="-hidden"),
-            Header(show_clock=True),
+            Header(show_clock=False),
             Body(
-                ChatTitle("untitled"),
+                self.current_title,
             ),
             Input(),
+            Footer(),
         )
-        yield Footer()
 
-    def add_message(self, role: MessageType, content: str) -> None:
-        self.messages.append(LLMMessage(role, content))
-            
-    @work(exit_on_error=True)
-    def call_llm_title(self, content: str) -> None:
-        title = self.query_one(ChatTitle)
-        title.update("updating...")
+    def on_mount(self) -> None:
+        input = self.query_one(Input)
+        input.focus()
+        self.body = self.query_one(Body)
+        self.set_sidebar(False)
 
-        prompt = [
-            {
-                "role": "system",
-                "content": """
-Summarize the following text in 5 words. Do not end sentence with dot
-and do not add any information other than the summary:
+    def set_sidebar(self, open: bool) -> None:
+        sidebar = self.query_one(Sidebar)
+        if open:
+            sidebar.remove_class("-hidden")
+        else:
+            sidebar.add_class("-hidden")
+            if sidebar.query("*:focus"):
+                self.screen.set_focus(None)
+                input = self.query_one(Input)
+                input.focus()
 
-```%s```
-"""%(content),
-            }
+    async def update_chat_name(self) -> None:
+        prompt = f"Summarize in one short sentence the following message:\n\n{self.current_chat.messages[0].content}"
+        messages = [
+            {"role": "user", "content": prompt},
         ]
 
-        response = openai.ChatCompletion.create(
-            model='gpt-3.5-turbo',
-            messages=prompt,
-            temperature=0,
-        )
+        resp = await acompletion(model=self.model, messages=messages, stream=True)
+        async for part in resp:
+            if part.choices[0].delta.content is not None:
+                self.current_chat.title += part.choices[0].delta.content
+                self.current_title.update(self.current_chat.title)
 
-        summary = response["choices"][0]["message"]["content"]
-        summary = summary.strip().strip(".")
-        title.update(summary)
-        
-
-    @work(exit_on_error=True)
-    def call_llm(self) -> None:
-        print('running thread')
-
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            print("creating new event loop")
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)  
-        
-        for msgs in self.library.run_messages(self.messages):
-            self.post_message(self.ContentUpdate(
-                self.ContentUpdate.Type.UPDATE,
-                msgs,
-            ))
-
-        self.post_message(self.ContentUpdate(self.ContentUpdate.Type.FINISHED, msgs))
-
-    def on_juggler_content_update(self, message: ContentUpdate) -> None:
-        if message.type == self.ContentUpdate.Type.FINISHED:
-            self.add_message(message.content[-1].type, message.content[-1].content)
-
+    async def update_chat(self) -> None:
+        # add current assistant baloon
         body = self.query_one(Body)
-        baloons = body.query(Baloon)
+        self.current_baloon = Baloon(MessageType.AI, "")
+        body.mount(self.current_baloon)
+        
+        messages = self.current_chat.to_dict()
+        resp = await acompletion(model=self.model, messages=messages, stream=True)
+        self.current_baloon.loaded()
+        async for part in resp:
+            if part.choices[0].delta.content is not None:
+                self.current_baloon.update_delta(part.choices[0].delta.content)
+                self.body.scroll_end()
 
-        idx_base = len(baloons)
-        for i in range(len(message.content) - len(baloons)):
-            idx = idx_base + i
-            baloon = Baloon(message.content[idx].type,
-                            message.content[idx].content,
-                            True)
-            body.mount(baloon)
-            
-        baloons = body.query(Baloon)
-        for i in range(len(message.content)):
-            msg = message.content[i]
-            baloons[i].update(msg.content)
+        self.current_chat.add_message(Message(msg_type=MessageType.AI, content=self.current_baloon.content))
+        self.body.scroll_end()
 
-        # scroll body
-        body.scroll_page_down()
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
+        # add user baloon and fill with content
+        self.current_chat.add_message(Message(msg_type=MessageType.USER, content=event.value))
+        body = self.query_one(Body)
+        user_baloon = Baloon(MessageType.USER, event.value, True)
+        await body.mount(user_baloon)
+        event.input.value = ""
 
+        # if this is the first message, update chat title
+        if len(self.current_chat.messages) == 1:
+            self.run_worker(self.update_chat_name())
 
-    def on_input_submitted(self, message: Input.Submitted) -> None:
-        # save message
-        msg = message.value
-        self.add_message(MessageType.USER, msg)
+        # call completion
+        self.run_worker(self.update_chat())
 
-        # clear input field
-        message.input.value = ""
-
-        self.call_llm()
-        if self.first_message:
-            self.first_message = False
-            self.call_llm_title(msg)
+    def action_new_chat(self) -> None:
+        self.run_worker(self.update_chat(), exclusive=True)
 
     def action_toggle_sidebar(self) -> None:
         sidebar = self.query_one(Sidebar)
-        self.set_focus(None)
         if sidebar.has_class("-hidden"):
-            sidebar.remove_class("-hidden")
+            self.set_sidebar(True)
         else:
-            if sidebar.query("*:focus"):
-                self.screen.set_focus(None)
-            sidebar.add_class("-hidden")
+            self.set_sidebar(False)
 
