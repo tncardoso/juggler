@@ -1,0 +1,16 @@
+{{ system() }}
+Your job is to answer questions based on context.
+---
+{{ user() }}
+<context>
+{% for f in context %}
+	<file>
+		<name>{{f.name}}</name>
+		<content>{{f.content}}</content>
+	</file>
+{% endfor %}
+</context>
+
+Question: {{ question }}
+---
+{{ assistant() }}

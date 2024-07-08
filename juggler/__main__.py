@@ -1,9 +1,11 @@
 import argparse
 import yaml
 import os
+import glob
 import pathlib
 from juggler.tui import Juggler
 from juggler.template import Template
+from juggler.model import ContextFile
 import juggler.complete as comp
 
 def init(config):
@@ -11,7 +13,7 @@ def init(config):
     os.environ["ANTHROPIC_API_KEY"] = config.get("anthropic", {}).get("api_key", "")
 
 def tui(args, config):
-    app = Juggler()
+    app = Juggler(args.model)
     app.run()
 
 def tests(args, config):
@@ -28,30 +30,56 @@ def run(args, config):
     template_dir = pathlib.Path(__file__).parent.resolve().joinpath("prompts")
     template_fname = template_dir.joinpath(args.template + ".j2")
 
+    print("contex_dir", args.context_dir)
+    context = []
+
+    if args.context_dir != None:
+        context_glob = glob.iglob(args.context_dir)
+        for fname in context_glob:
+            with open(fname, "r") as f:
+                context.append(ContextFile(
+                    filename=fname,
+                    content=f.read(),
+                ))
+
+    inputs = []
+    for f in args.files:
+        inputs.append(f.read())
+
     with open(template_fname, "r") as f:
         content = f.read()
-        t = Template(content)
-        t.run()
+        t = Template(args.model, content)
+        t.run(context, inputs)
 
 def complete(args, config):
-    comp.complete(args.filename)
+    comp.complete(args.model, args.filename)
 
 def main():
     # read juggler config
+    config_path = (pathlib.Path(__file__)
+                   .parent.parent
+                   .resolve().joinpath("juggler.yaml"))
     config = None
-    with open("juggler.yaml") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
     init(config)
 
     parser = argparse.ArgumentParser(description="Working with LLMs")
-    parser.add_argument("--model", default="gpt-4o")
+    parser.add_argument("--model", 
+                        choices=["gpt-4o", "claude-3-5-sonnet-20240620"],
+                        default="claude-3-5-sonnet-20240620")
     subparsers = parser.add_subparsers(dest="command")
 
     tui_parser = subparsers.add_parser("tui", help="Run TUI")
     tests_parser = subparsers.add_parser("tests", help="Run tests")
 
     run_parser = subparsers.add_parser("run", help="Run template")
+    run_parser.add_argument("--context-dir", type=str, default=None,
+                            help="Add specified files to context")
     run_parser.add_argument("template", help="Template name")
+    run_parser.add_argument("files", nargs="*",
+                            type=argparse.FileType("r"),
+                            help="Input files")
 
     file_parser = subparsers.add_parser("complete", help="Autocomplete end of file")
     file_parser.add_argument("filename", help="Filename")

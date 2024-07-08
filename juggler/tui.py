@@ -104,10 +104,9 @@ class Juggler(App[None]):
     current_title: ChatTitle = ChatTitle("New chat")
     body: Body
 
-    def __init__(self):
+    def __init__(self, model: str):
         super(Juggler, self).__init__()
-        self.model = "claude-3-5-sonnet-20240620"
-        #gpt-3.5-turbo
+        self.model = model
 
     def compose(self) -> ComposeResult:
         yield Container(

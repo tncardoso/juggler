@@ -2,9 +2,12 @@ import sys
 from jinja2 import Environment, select_autoescape, meta
 from litellm import completion
 from juggler.message import Chat, MessageType, Message
+from juggler.model import ContextFile
+from typing import List
 
 class Template:
-    def __init__(self, prompt: str):
+    def __init__(self, model: str, prompt: str):
+        self.model = model
         self.prompt = prompt
         self.role: MessageType = MessageType.SYSTEM
         self.chat: Chat = Chat()
@@ -24,7 +27,7 @@ class Template:
         print(f"\n--- {self.role} ---\n")
         result = ""
         resp = completion(
-            model="gpt-3.5-turbo",
+            model=self.model,
             messages=self.chat.to_dict(),
             stream=True)
         for part in resp:
@@ -38,7 +41,7 @@ class Template:
         if msg.msg_type != MessageType.AI:
             print(msg.content)
 
-    def run(self):
+    def run(self, context: List[ContextFile], inputs=[]):
         env = Environment(
             autoescape=select_autoescape(),
         )
@@ -52,9 +55,13 @@ class Template:
 
         for msg in chat:
             parsed_content = env.parse(msg)
-            vars = {}
+            vars = {
+                "context": context,
+                "inputs": inputs
+            }
             for var in meta.find_undeclared_variables(parsed_content):
-                vars[var] = input(f"{var}: ").strip()
+                if var != "inputs" and var != "context":
+                    vars[var] = input(f"{var}: ").strip()
 
             t = env.from_string(msg)
             content = t.render(**vars).strip()

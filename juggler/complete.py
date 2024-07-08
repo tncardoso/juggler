@@ -1,8 +1,9 @@
 import sys
+import pathlib
 from litellm import completion
 from juggler.message import Chat, Message, MessageType
 
-def complete(fname):
+def complete(model: str, fname: pathlib.Path):
     with open(fname, "r") as f:
         content = f.read()
 
@@ -27,7 +28,7 @@ You are a specialist in programming, your job is to expand the provided content.
         print(content)
 
         resp = completion(
-            model="gpt-3.5-turbo",
+            model=model,
             messages=chat.to_dict(),
             stream=True)
         for part in resp:
