@@ -6,6 +6,7 @@ import pathlib
 from juggler.tui import Juggler
 from juggler.template import Template
 from juggler.model import ContextFile
+from juggler.sh import SHAgent
 import juggler.complete as comp
 
 def init(config):
@@ -54,6 +55,10 @@ def run(args, config):
 def complete(args, config):
     comp.complete(args.model, args.filename)
 
+def shell(args, config):
+    sh = SHAgent(args.model)
+    sh.run()
+
 def main():
     # read juggler config
     config_path = (pathlib.Path(__file__)
@@ -84,6 +89,8 @@ def main():
     file_parser = subparsers.add_parser("complete", help="Autocomplete end of file")
     file_parser.add_argument("filename", help="Filename")
 
+    sh_parser = subparsers.add_parser("shell", help="Shell Agent")
+
     args = parser.parse_args()
 
     if args.command == "tui":
@@ -94,6 +101,8 @@ def main():
         run(args, config)
     elif args.command == "complete":
         complete(args, config)
+    elif args.command == "shell":
+        shell(args, config)
     else:
         parser.print_help()
 
