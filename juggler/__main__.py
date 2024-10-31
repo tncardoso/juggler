@@ -3,6 +3,7 @@ import yaml
 import os
 import glob
 import pathlib
+import litellm
 from juggler.tui import Juggler
 from juggler.template import Template
 from juggler.model import ContextFile
@@ -10,6 +11,7 @@ from juggler.sh import SHAgent
 import juggler.complete as comp
 
 def init(config):
+    #litellm.set_verbose=True
     os.environ["OPENAI_API_KEY"] = config.get("openai", {}).get("api_key", "")
     os.environ["ANTHROPIC_API_KEY"] = config.get("anthropic", {}).get("api_key", "")
 
