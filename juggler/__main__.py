@@ -1,41 +1,38 @@
 import argparse
-import yaml
+import logging
 import os
 import glob
 import pathlib
-import litellm
 from juggler.tui import Juggler
-from juggler.template import Template
+from juggler.template import Template, TemplateLoader
 from juggler.model import ContextFile
 from juggler.sh import SHAgent
+from juggler.config import *
 import juggler.complete as comp
 
-def init(config):
+def init(config: Config) -> None:
+    logging.basicConfig(level=logging.DEBUG)
     #litellm.set_verbose=True
-    os.environ["OPENAI_API_KEY"] = config.get("openai", {}).get("api_key", "")
-    os.environ["ANTHROPIC_API_KEY"] = config.get("anthropic", {}).get("api_key", "")
+    if config.openai:
+        os.environ["OPENAI_API_KEY"] = config.openai.key
+    if config.anthropic:
+        os.environ["ANTHROPIC_API_KEY"] = config.anthropic.key
 
-def tui(args, config):
+def tui(args: argparse.Namespace, config: Config) -> None:
     app = Juggler(args.model)
     app.run()
 
-def tests(args, config):
-    openai_config = config.get("openai", {})
+def run(args: argparse.Namespace, config: Config) -> None:
+    pkg_dir = pathlib.Path(__file__).parent.resolve().joinpath("prompts")
+    config_dir = Path.home().joinpath(".config/juggler/prompts")
 
-    t = Tester(base_dir="tests")
-    t.init(
-        base_url=openai_config.get("base_url", None),
-        headers=openai_config.get("headers", None),
-    )
-    t.run()
+    loader = TemplateLoader([
+        pkg_dir,
+        config_dir,
+    ])
 
-def run(args, config):
-    template_dir = pathlib.Path(__file__).parent.resolve().joinpath("prompts")
-    template_fname = template_dir.joinpath(args.template + ".j2")
-
-    print("contex_dir", args.context_dir)
+    logging.info("loading context files from", args.context_dir)
     context = []
-
     if args.context_dir != None:
         context_glob = glob.iglob(args.context_dir)
         for fname in context_glob:
@@ -45,40 +42,33 @@ def run(args, config):
                     content=f.read(),
                 ))
 
+    logging.info("reading input files")
     inputs = []
     for f in args.files:
         inputs.append(f.read())
 
-    with open(template_fname, "r") as f:
-        content = f.read()
-        t = Template(args.model, content)
+    t = loader.get_by_name(args.model, args.template + ".j2")
+    if t:
         t.run(context, inputs)
 
-def complete(args, config):
+def complete(args: argparse.Namespace, config: Config):
     comp.complete(args.model, args.filename)
 
-def shell(args, config):
+def shell(args: argparse.Namespace, config: Config):
     sh = SHAgent(args.model)
     sh.run()
 
 def main():
-    # read juggler config
-    config_path = (pathlib.Path(__file__)
-                   .parent.parent
-                   .resolve().joinpath("juggler.yaml"))
-    config = None
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
+    config = read_config()
     init(config)
 
     parser = argparse.ArgumentParser(description="Working with LLMs")
-    parser.add_argument("--model", 
+    parser.add_argument("--model",
                         choices=["gpt-4o", "claude-3-5-sonnet-20240620"],
                         default="claude-3-5-sonnet-20240620")
     subparsers = parser.add_subparsers(dest="command")
 
     tui_parser = subparsers.add_parser("tui", help="Run TUI")
-    tests_parser = subparsers.add_parser("tests", help="Run tests")
 
     run_parser = subparsers.add_parser("run", help="Run template")
     run_parser.add_argument("--context-dir", type=str, default=None,
@@ -97,8 +87,6 @@ def main():
 
     if args.command == "tui":
         tui(args, config)
-    elif args.command == "tests":
-        tests(args, config)
     elif args.command == "run":
         run(args, config)
     elif args.command == "complete":
@@ -111,4 +99,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

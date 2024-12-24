@@ -43,7 +43,7 @@ class SHAgent:
                 content=t.render(shell=out.decode("utf8")),
             )
         )
-        
+
 
 
     def _cmd(self, cmd: str):
@@ -71,9 +71,9 @@ class SHAgent:
             with Live(Markdown(""), refresh_per_second=1) as live:
                 #sys.stdout.write("\n")
                 for part in resp:
-                    if part.choices[0].delta.content is not None:
-                        assistant += part.choices[0].delta.content
-                        #sys.stdout.write(part.choices[0].delta.content)
+                    content = part.choices[0].delta.content # pyright: ignore
+                    if content is not None:
+                        assistant += content
                         live.update(Markdown(assistant))
             sys.stdout.write("\n")
             self._chat.add_message(Message(
@@ -88,12 +88,11 @@ class SHAgent:
                     cmd = m.group(1)
                     out, err = self._cmd(cmd)
 
-                    console.print(Markdown(f"```sh\n{out.decode('utf8')}\n```"))
+                    console.print(Markdown(f"```sh\n{out.decode()}\n```"))
                     if err:
-                        console.print(Markdown(f"```sh\n{err.decode('utf8')}\n```"))
+                        console.print(Markdown(f"```sh\n{err.decode()}\n```"))
 
                     self._chat.add_message(Message(
                         msg_type=MessageType.SYSTEM,
-                        content=out.strip(),
+                        content=out.decode().strip(),
                     ))
-

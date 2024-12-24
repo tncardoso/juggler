@@ -16,6 +16,7 @@ from textual.widgets import (
     TextArea,
 )
 from juggler.message import Message, MessageType, Chat
+from typing import Optional
 
 class Body(ScrollableContainer):
     pass
@@ -43,12 +44,12 @@ class BaloonMarkdown(Markdown):
     pass
 
 class Baloon(Container):
-    content: str = reactive("")
+    content = reactive("")
     container: BaloonContainer
     markdown: BaloonMarkdown
     message_type: MessageType = MessageType.SYSTEM
     add_loaded: bool = False
-    loading: bool = True
+    isloading: bool = True
 
     def __init__(self, message_type: MessageType, content: str, add_loaded: bool=False):
         super().__init__()
@@ -63,11 +64,11 @@ class Baloon(Container):
         yield self.container
 
     def loaded(self) -> None:
-        if self.loading:
+        if self.isloading:
             for widget in self.container.children:
                 widget.remove()
             self.container.mount(self.markdown)
-            self.loading = False
+            self.isloading = False
 
     def on_mount(self) -> None:
         if self.add_loaded:
@@ -99,7 +100,7 @@ class Juggler(App[None]):
         Binding("ctrl+q", "app.quit", "Quit", show=True),
     ]
 
-    current_baloon: Baloon = None
+    current_baloon: Optional[Baloon] = None
     current_chat: Chat = Chat()
     current_title: ChatTitle = ChatTitle("New chat")
     body: Body
@@ -143,7 +144,7 @@ class Juggler(App[None]):
         ]
 
         resp = await acompletion(model=self.model, messages=messages, stream=True)
-        async for part in resp:
+        async for part in resp: # pyright: ignore
             if part.choices[0].delta.content is not None:
                 self.current_chat.title += part.choices[0].delta.content
                 self.current_title.update(self.current_chat.title)
@@ -153,11 +154,11 @@ class Juggler(App[None]):
         body = self.query_one(Body)
         self.current_baloon = Baloon(MessageType.AI, "")
         body.mount(self.current_baloon)
-        
+
         messages = self.current_chat.to_dict()
         resp = await acompletion(model=self.model, messages=messages, stream=True)
         self.current_baloon.loaded()
-        async for part in resp:
+        async for part in resp: # pyright: ignore
             if part.choices[0].delta.content is not None:
                 self.current_baloon.update_delta(part.choices[0].delta.content)
                 self.body.scroll_end()
@@ -166,6 +167,10 @@ class Juggler(App[None]):
         self.body.scroll_end()
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.value == "":
+            # ignore if no text was input
+            return
+
         # add user baloon and fill with content
         self.current_chat.add_message(Message(msg_type=MessageType.USER, content=event.value))
         body = self.query_one(Body)
@@ -181,7 +186,10 @@ class Juggler(App[None]):
         self.run_worker(self.update_chat())
 
     def action_new_chat(self) -> None:
-        self.run_worker(self.update_chat(), exclusive=True)
+        self.current_baloon = None
+        self.current_chat = Chat()
+        self.current_title.update("New chat")
+        self.query(Baloon).remove()
 
     def action_toggle_sidebar(self) -> None:
         sidebar = self.query_one(Sidebar)
@@ -189,4 +197,3 @@ class Juggler(App[None]):
             self.set_sidebar(True)
         else:
             self.set_sidebar(False)
-

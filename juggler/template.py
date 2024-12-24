@@ -3,7 +3,8 @@ from jinja2 import Environment, select_autoescape, meta
 from litellm import completion
 from juggler.message import Chat, MessageType, Message
 from juggler.model import ContextFile
-from typing import List
+from typing import Any, List, Optional, cast
+from pathlib import Path
 
 class Template:
     def __init__(self, model: str, prompt: str):
@@ -12,28 +13,29 @@ class Template:
         self.role: MessageType = MessageType.SYSTEM
         self.chat: Chat = Chat()
 
-    def system(self):
+    def system(self) -> str:
         self.role = MessageType.SYSTEM
         print(f"\n--- {self.role} ---\n")
         return ""
 
-    def user(self):
+    def user(self) -> str:
         self.role = MessageType.USER
         print(f"\n--- {self.role} ---\n")
         return ""
 
-    def assistant(self):
+    def assistant(self) -> str:
         self.role = MessageType.AI
         print(f"\n--- {self.role} ---\n")
-        result = ""
+        result: str = ""
         resp = completion(
             model=self.model,
             messages=self.chat.to_dict(),
             stream=True)
         for part in resp:
-            if part.choices[0].delta.content is not None:
-                result += part.choices[0].delta.content
-                sys.stdout.write(part.choices[0].delta.content)
+            content = part.choices[0].delta.content # pyright: ignore
+            if content is not None:
+                result += content
+                sys.stdout.write(content)
         return result
 
     def add_message(self, msg: Message):
@@ -41,7 +43,7 @@ class Template:
         if msg.msg_type != MessageType.AI:
             print(msg.content)
 
-    def run(self, context: List[ContextFile], inputs=[]):
+    def run(self, context: List[ContextFile], inputs: List[str] = []) -> None:
         env = Environment(
             autoescape=select_autoescape(),
         )
@@ -49,16 +51,16 @@ class Template:
         env.globals.update(system=lambda: self.system())
         env.globals.update(assistant=lambda: self.assistant())
         env.globals.update(user=lambda: self.user())
-        env.globals.update(gen=lambda: self.gen())
 
         chat = self.prompt.split("---")
 
         for msg in chat:
             parsed_content = env.parse(msg)
-            vars = {
+            vars: dict[str, Any] = {
                 "context": context,
                 "inputs": inputs
             }
+
             for var in meta.find_undeclared_variables(parsed_content):
                 if var != "inputs" and var != "context":
                     vars[var] = input(f"{var}: ").strip()
@@ -67,8 +69,30 @@ class Template:
             content = t.render(**vars).strip()
             self.add_message(Message(msg_type=self.role, content=content))
 
+class TemplateLoader:
+    """
+    Load templates following a path hierarchy. The first
+    template with provided name is returned.
+    """
 
+    def __init__(self, dirs: List[Path]):
+        self.dirs = dirs
+
+    def get_by_name(self, model:str, name: str) -> Optional[Template]:
+        """
+        Iterate directories looking for file with given name. The
+        first one found is returned.
+        """
+
+        for d in self.dirs:
+            path = d.joinpath(name)
+            if path.exists():
+                with open(path, "r") as f:
+                    content = f.read()
+                    t = Template(model, content)
+                    return t
+        return None
 
 if __name__ == "__main__":
-    t = Template()
-    t.run()
+    t = Template("gpt-4o-mini", "hello")
+    t.run([])

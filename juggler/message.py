@@ -1,13 +1,13 @@
 import enum
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class MessageType(str, enum.Enum):
     SYSTEM = "📢"
     USER = "👤"
     AI = "🤖"
 
-    def to_role(self):
+    def to_role(self) -> Optional[str]:
         conv = {
             MessageType.SYSTEM: "system",
             MessageType.USER: "user",
@@ -17,7 +17,7 @@ class MessageType(str, enum.Enum):
 
 
     @staticmethod
-    def from_role(role: str):
+    def from_role(role: str) -> "MessageType":
         if role == "system":
             return MessageType.SYSTEM
         elif role == "user":
@@ -25,7 +25,7 @@ class MessageType(str, enum.Enum):
         elif role == "assistant":
             return MessageType.AI
         else:
-            raise 'illegalfixme'
+            raise ValueError("Invalid message type", role)
 
 class Message(BaseModel):
     msg_type: MessageType
@@ -38,7 +38,7 @@ class Chat(BaseModel):
     title: str = ""
     messages: List[Message] = []
 
-    def to_dict(self):
+    def to_dict(self) -> List[dict[str, str]]:
         return [m.to_dict() for m in self.messages]
 
     def add_message(self, msg: Message) -> None:

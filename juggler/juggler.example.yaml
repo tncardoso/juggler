@@ -1,0 +1,4 @@
+openai:
+  key: "openai_key"
+anthropic:
+  key: "anthropic_key"
