@@ -10,9 +10,13 @@ class AnthropicConfig(BaseModel):
 class OpenAIConfig(BaseModel):
     key: str
 
+class DeepseekConfig(BaseModel):
+    key: str
+
 class Config(BaseModel):
     openai: Optional[OpenAIConfig]
     anthropic: Optional[AnthropicConfig]
+    deepseek: Optional[DeepseekConfig]
 
 def read_config() -> Config:
     # try to read from config local dir
