@@ -19,7 +19,10 @@ def read_config() -> Config:
     # otherwise from ~/.config/juggler/juggler.yaml
     home_dir = Path.home()
     home_config = home_dir.joinpath(".config/juggler/juggler.yaml")
-    path = Path("juggler.yaml")
+    path = (Path(__file__)
+        .parent
+        .parent
+        .joinpath("juggler.yaml"))
 
     if not path.exists():
         path = home_config
