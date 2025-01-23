@@ -25,17 +25,10 @@ def tui(args: argparse.Namespace, config: Config) -> None:
     app.run()
 
 
+def list_templates(args: argparse.Namespace, config: Config) -> None:
+    args.loader.list()
+
 def run(args: argparse.Namespace, config: Config) -> None:
-    pkg_dir = pathlib.Path(__file__).parent.resolve().joinpath("prompts")
-    config_dir = Path.home().joinpath(".config/juggler/prompts")
-
-    loader = TemplateLoader(
-        [
-            pkg_dir,
-            config_dir,
-        ]
-    )
-
     logging.info("loading context files from", args.context_dir)
     context = []
     if args.context_dir != None:
@@ -54,7 +47,7 @@ def run(args: argparse.Namespace, config: Config) -> None:
     for f in args.files:
         inputs.append(f.read())
 
-    t = loader.get_by_name(args.model, args.template + ".j2")
+    t = args.loader.get_by_name(args.model, args.template + ".j2")
     if t:
         t.run(context, inputs)
 
@@ -84,6 +77,7 @@ def main():
     )
     subparsers = parser.add_subparsers(dest="command")
 
+    list_parser = subparsers.add_parser("list", help="List available templates")
     tui_parser = subparsers.add_parser("tui", help="Run TUI")
 
     run_parser = subparsers.add_parser("run", help="Run template")
@@ -102,8 +96,20 @@ def main():
 
     args = parser.parse_args()
 
+    # add template loader to args
+    pkg_dir = pathlib.Path(__file__).parent.resolve().joinpath("prompts")
+    config_dir = Path.home().joinpath(".config/juggler/prompts")
+    args.loader = TemplateLoader(
+        [
+            pkg_dir,
+            config_dir,
+        ]
+    )
+
     if args.command == "tui":
         tui(args, config)
+    elif args.command == "list":
+        list_templates(args, config)
     elif args.command == "run":
         run(args, config)
     elif args.command == "complete":

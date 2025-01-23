@@ -5,6 +5,7 @@ from juggler.message import Chat, MessageType, Message
 from juggler.model import ContextFile
 from typing import Any, List, Optional, cast
 from pathlib import Path
+import re
 
 class Template:
     def __init__(self, model: str, prompt: str):
@@ -92,6 +93,26 @@ class TemplateLoader:
                     t = Template(model, content)
                     return t
         return None
+    
+    def list(self):
+        # regex to find all entries with format {# summary: text #} and extract text
+        pattern = r"{#[\s]+summary:[\s]+(.*)[\s]*#}"
+
+        for d in self.dirs:
+            for f in d.glob("*.j2"):
+                path = d.joinpath(f.name)
+                content = path.read_text()
+
+                summary = ""
+                matches = re.findall(pattern, content)
+                for m in matches:
+                    summary += m.strip()
+
+                if summary == "":
+                    print(f"{f.name.rstrip(".j2")}")
+                else:
+                    print(f"{f.name.rstrip(".j2")}: {summary}")
+
 
 if __name__ == "__main__":
     t = Template("gpt-4o-mini", "hello")
