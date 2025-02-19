@@ -109,9 +109,9 @@ class TemplateLoader:
                     summary += m.strip()
 
                 if summary == "":
-                    print(f"{f.name.rstrip(".j2")}")
+                    print(f"{f.name.rstrip('.j2')}")
                 else:
-                    print(f"{f.name.rstrip(".j2")}: {summary}")
+                    print(f"{f.name.rstrip('.j2')}: {summary}")
 
 
 if __name__ == "__main__":

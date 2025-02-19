@@ -20,6 +20,8 @@ def init(config: Config) -> None:
         os.environ["ANTHROPIC_API_KEY"] = config.anthropic.key
     if config.deepseek:
         os.environ["DEEPSEEK_API_KEY"] = config.deepseek.key
+    if config.gemini:
+        os.environ["GEMINI_API_KEY"] = config.gemini.key
 
 
 def tui(args: argparse.Namespace, config: Config) -> None:
@@ -77,6 +79,7 @@ def main():
                             "claude-3-5-sonnet-20240620",
                             "deepseek/deepseek-chat",
                             "deepseek/deepseek-coder",
+                            "gemini/gemini-2.0-flash",
                         ],
                         default="anthropic/claude-3-5-sonnet-20240620")
     subparsers = parser.add_subparsers(dest="command")
