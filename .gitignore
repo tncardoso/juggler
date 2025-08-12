@@ -1,3 +1,4 @@
 *.pyc
 tests
 juggler.yaml
+opencode.json

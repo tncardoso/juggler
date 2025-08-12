@@ -33,6 +33,23 @@ Sidebar Title {
 
 Sidebar Button {
     width: 100%;
+    margin: 0 1;
+}
+
+Sidebar Button:focus {
+    background: $accent;
+    color: $text;
+}
+
+SessionButton {
+    text-align: left;
+    padding: 1 2;
+}
+
+SessionButton:focus {
+    background: $accent;
+    color: $text;
+    border: thick $primary;
 }
 
 ChatTitle {

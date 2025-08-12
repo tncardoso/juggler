@@ -37,6 +37,8 @@ class Message(BaseModel):
 class Chat(BaseModel):
     title: str = ""
     messages: List[Message] = []
+    session_id: str = ""
+    created_at: str = ""
 
     def to_dict(self) -> List[dict[str, str]]:
         return [m.to_dict() for m in self.messages]
