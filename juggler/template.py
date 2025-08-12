@@ -3,9 +3,10 @@ from jinja2 import Environment, select_autoescape, meta
 from litellm import completion
 from juggler.message import Chat, MessageType, Message
 from juggler.model import ContextFile
-from typing import Any, List, Optional, cast
+from typing import Any, List, Optional
 from pathlib import Path
 import re
+
 
 class Template:
     def __init__(self, model: str, prompt: str):
@@ -28,12 +29,9 @@ class Template:
         self.role = MessageType.AI
         print(f"\n--- {self.role} ---\n")
         result: str = ""
-        resp = completion(
-            model=self.model,
-            messages=self.chat.to_dict(),
-            stream=True)
+        resp = completion(model=self.model, messages=self.chat.to_dict(), stream=True)
         for part in resp:
-            content = part.choices[0].delta.content # pyright: ignore
+            content = part.choices[0].delta.content  # pyright: ignore
             if content is not None:
                 result += content
                 sys.stdout.write(content)
@@ -57,10 +55,7 @@ class Template:
 
         for msg in chat:
             parsed_content = env.parse(msg)
-            vars: dict[str, Any] = {
-                "context": context,
-                "inputs": inputs
-            }
+            vars: dict[str, Any] = {"context": context, "inputs": inputs}
 
             for var in meta.find_undeclared_variables(parsed_content):
                 if var != "inputs" and var != "context":
@@ -69,6 +64,7 @@ class Template:
             t = env.from_string(msg)
             content = t.render(**vars).strip()
             self.add_message(Message(msg_type=self.role, content=content))
+
 
 class TemplateLoader:
     """
@@ -79,7 +75,7 @@ class TemplateLoader:
     def __init__(self, dirs: List[Path]):
         self.dirs = dirs
 
-    def get_by_name(self, model:str, name: str) -> Optional[Template]:
+    def get_by_name(self, model: str, name: str) -> Optional[Template]:
         """
         Iterate directories looking for file with given name. The
         first one found is returned.
@@ -93,7 +89,7 @@ class TemplateLoader:
                     t = Template(model, content)
                     return t
         return None
-    
+
     def list(self):
         # regex to find all entries with format {# summary: text #} and extract text
         pattern = r"{#[\s]+summary:[\s]+(.*)[\s]*#}"

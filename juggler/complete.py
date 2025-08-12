@@ -3,6 +3,7 @@ import pathlib
 from litellm import completion
 from juggler.message import Chat, Message, MessageType
 
+
 def complete(model: str, fname: pathlib.Path) -> None:
     with open(fname, "r") as f:
         content = f.read()
@@ -33,7 +34,7 @@ You are a specialist in programming, your job is to expand the provided content.
 
         resp = completion(model=model, messages=chat.to_dict(), stream=True)
         for part in resp:
-            content = part.choices[0].delta.content # pyright: ignore
+            content = part.choices[0].delta.content  # pyright: ignore
             if content is not None:
                 sys.stdout.write(content)
                 f.write(content)

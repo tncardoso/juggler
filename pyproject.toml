@@ -14,11 +14,9 @@ pydantic = "^2.10.4"
 
 
 [tool.poetry.group.dev.dependencies]
-pyright = "^1.1.391"
-
-[tool.pyright]
-include = ["juggler"]
-#strict = ["juggler"]
+ty = "^0.9.0"
+ruff = "^0.1.0"
+pre-commit = "^3.0.0"
 
 [build-system]
 requires = ["poetry-core"]

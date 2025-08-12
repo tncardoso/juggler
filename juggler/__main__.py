@@ -4,10 +4,10 @@ import os
 import glob
 import pathlib
 from juggler.tui import Juggler
-from juggler.template import Template, TemplateLoader
+from juggler.template import TemplateLoader
 from juggler.model import ContextFile
 from juggler.sh import SHAgent
-from juggler.config import *
+from juggler.config import read_config, Config
 import juggler.complete as comp
 
 
@@ -32,10 +32,11 @@ def tui(args: argparse.Namespace, config: Config) -> None:
 def list_templates(args: argparse.Namespace, config: Config) -> None:
     args.loader.list()
 
+
 def run(args: argparse.Namespace, config: Config) -> None:
     logging.info("loading context files from", args.context_dir)
     context = []
-    if args.context_dir != None:
+    if args.context_dir is not None:
         context_glob = glob.iglob(args.context_dir)
         for fname in context_glob:
             with open(fname, "r") as f:
@@ -70,22 +71,24 @@ def main():
     init(config)
 
     parser = argparse.ArgumentParser(description="Working with LLMs")
-    parser.add_argument("--model",
-                        choices=[
-                            "gpt-4o",
-                            "gpt-4o-mini",
-                            "o1-mini",
-                            "o1-preview",
-                            "claude-3-5-sonnet-20240620",
-                            "deepseek/deepseek-chat",
-                            "deepseek/deepseek-coder",
-                            "gemini/gemini-2.0-flash",
-                        ],
-                        default="anthropic/claude-3-5-sonnet-20240620")
+    parser.add_argument(
+        "--model",
+        choices=[
+            "gpt-4o",
+            "gpt-4o-mini",
+            "o1-mini",
+            "o1-preview",
+            "claude-3-5-sonnet-20240620",
+            "deepseek/deepseek-chat",
+            "deepseek/deepseek-coder",
+            "gemini/gemini-2.0-flash",
+        ],
+        default="anthropic/claude-3-5-sonnet-20240620",
+    )
     subparsers = parser.add_subparsers(dest="command")
 
-    list_parser = subparsers.add_parser("list", help="List available templates")
-    tui_parser = subparsers.add_parser("tui", help="Run TUI")
+    subparsers.add_parser("list", help="List available templates")
+    subparsers.add_parser("tui", help="Run TUI")
 
     run_parser = subparsers.add_parser("run", help="Run template")
     run_parser.add_argument(
@@ -99,13 +102,13 @@ def main():
     file_parser = subparsers.add_parser("complete", help="Autocomplete end of file")
     file_parser.add_argument("filename", help="Filename")
 
-    sh_parser = subparsers.add_parser("shell", help="Shell Agent")
+    subparsers.add_parser("shell", help="Shell Agent")
 
     args = parser.parse_args()
 
     # add template loader to args
     pkg_dir = pathlib.Path(__file__).parent.resolve().joinpath("prompts")
-    config_dir = Path.home().joinpath(".config/juggler/prompts")
+    config_dir = pathlib.Path.home().joinpath(".config/juggler/prompts")
     args.loader = TemplateLoader(
         [
             pkg_dir,
